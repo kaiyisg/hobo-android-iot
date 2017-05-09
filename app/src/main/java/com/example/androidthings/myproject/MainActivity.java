@@ -20,6 +20,11 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
 
+import com.google.android.things.contrib.driver.button.Button;
+import com.google.android.things.pio.PeripheralManagerService;
+
+import java.io.IOException;
+
 /**
  * Skeleton of the main Android Things activity. Implement your device's logic
  * in this class.
@@ -42,15 +47,62 @@ import android.util.Log;
 public class MainActivity extends Activity {
     private static final String TAG = MainActivity.class.getSimpleName();
 
+    /**
+     * The GPIO pin to activate for button presses.
+     */
+    private final String BUTTON_GPIO_PIN = "BCM5";
+
+    /**
+     * Driver for the doorbell button;
+     */
+    private Button mButton;
+
+    /**
+     * Initializes button driver, which will report physical button presses.
+     */
+    private void initializeDoorbellButton() {
+        try {
+            mButton = new Button(BUTTON_GPIO_PIN,
+                    Button.LogicState.PRESSED_WHEN_LOW);
+            mButton.setOnButtonEventListener(mButtonCallback);
+        } catch (IOException e) {
+            Log.e(TAG, "button driver error", e);
+        }
+    }
+
+    /**
+     * Callback for button events.
+     */
+    private Button.OnButtonEventListener mButtonCallback =
+            new Button.OnButtonEventListener() {
+                @Override
+                public void onButtonEvent(Button button, boolean pressed) {
+                    if (pressed) {
+                        // Doorbell rang!
+                        Log.d(TAG, "button pressed");
+                    }
+                }
+            };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.d(TAG, "onCreate");
+        PeripheralManagerService service = new PeripheralManagerService();
+        Log.d(TAG, "Available GPIO: " + service.getGpioList());
+        initializeDoorbellButton();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         Log.d(TAG, "onDestroy");
+        if (mButton != null) {
+            try {
+                mButton.close();
+            } catch (IOException e) {
+                Log.e(TAG, "button driver error", e);
+            }
+        }
     }
 }
